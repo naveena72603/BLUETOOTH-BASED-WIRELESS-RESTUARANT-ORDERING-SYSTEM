@@ -51,7 +51,7 @@ void UART0_Init(void)
     U0LCR = 0x83;
 
     /* PCLK = 15 MHz, baud = 9600 */
-    U0DLL = 98;
+    U0DLL = 97;
     U0DLM = 0;
 
     /* 8 data bits, 1 stop bit, no parity */
