@@ -80,5 +80,6 @@ Future Enhancements
 - Input: 4×4 Keypad
 - Communication:HC-05 Bluetooth
 - Status Indicator: LED
-
-BLOCK DIAGRAM:
+ 
+AUTHOR NAME:
+Naveena.A
