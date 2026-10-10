@@ -11,8 +11,8 @@
 #define LED (1 << 20)
 
 /* Keypad: Rows P1.16-P1.19, columns P1.20-P1.23 */
-#define ROW_MASK (0x0FU << 16)
-#define COL_MASK (0x0FU << 20)
+#define ROW_MASK (0x0F << 16)
+#define COL_MASK (0x0F << 20)
 
 
 unsigned int tableNo = 0;
@@ -31,24 +31,21 @@ const char keypad[4][4] = {
 
 void DelayMs(unsigned int ms)
 {
-    unsigned int i, j;
-
-    for (i = 0; i < ms; i++)
-    {
-        for (j = 0; j < 6000; j++)
-        {
-            /* Approximate delay; depends on compiler and clock */
-        }
-    }
+T0PR=15000-1;
+T0TCR=0x1;
+while(T0TC<ms);
+T0TCR=0x3;
+T0TCR=0x0;
 }
+
 
 /* ---------------- UART0 FUNCTIONS ---------------- */
 
 void UART0_Init(void)
 {
     /* Select UART0 functions on P0.0 and P0.1 */
-    PINSEL0 &= ~0x0000000FU;
-    PINSEL0 |= 0x00000005U;
+    PINSEL0 &= ~0x0000000F;
+    PINSEL0 |= 0x00000005;
 
     /* Enable divisor latch */
     U0LCR = 0x83;
@@ -130,27 +127,27 @@ int Bluetooth_ReadLine(char *buffer, unsigned int size)
 
 void LCD_Pulse(void)
 {
-    IO0SET = LCD_EN;
+    IOSET0 = LCD_EN;
     DelayMs(1);
 
-    IO0CLR = LCD_EN;
+    IOCLR0 = LCD_EN;
     DelayMs(1);
 }
 
 void LCD_Nibble(unsigned char data)
 {
     /* Clear LCD data pins */
-    IO0CLR = LCD_DATA;
+    IOCLR0 = LCD_DATA;
 
     /* Put the four-bit value on P0.14-P0.17 */
-    IO0SET = ((unsigned long)(data & 0x0F) << 14);
+    IOSET0 = ((unsigned long)(data & 0x0F) << 14);
 
     LCD_Pulse();
 }
 
 void LCD_Command(unsigned char cmd)
 {
-    IO0CLR = LCD_RS;
+    IOCLR0 = LCD_RS;
 
     LCD_Nibble(cmd >> 4);
     LCD_Nibble(cmd & 0x0F);
@@ -163,7 +160,7 @@ void LCD_Command(unsigned char cmd)
 
 void LCD_Data(unsigned char data)
 {
-    IO0SET = LCD_RS;
+    IOSET0 = LCD_RS;
 
     LCD_Nibble(data >> 4);
     LCD_Nibble(data & 0x0F);
@@ -200,16 +197,16 @@ void LCD_Init(void)
     PINSEL0 &= ~((3U << 24) | (3U << 26) |
                  (3U << 28) | (3U << 30));
 
-    PINSEL1 &= ~0x0000000FU;
+    PINSEL1 &= ~0x0000000F;
 
-    IO0DIR |= LCD_PINS;
+    IODIR0 |= LCD_PINS;
 
-    IO0CLR = LCD_PINS;
+    IOCLR0 = LCD_PINS;
 
     DelayMs(20);
 
     /* Initialise LCD in 4-bit mode */
-    IO0CLR = LCD_RS;
+    IOCLR0 = LCD_RS;
 
     LCD_Nibble(0x03);
     DelayMs(5);
@@ -258,16 +255,12 @@ void ScrollTitle(void)
 void Keypad_Init(void)
 {
     /* Rows are outputs; columns are inputs */
-    IO1DIR |= ROW_MASK;
-    IO1DIR &= ~COL_MASK;
+    IODIR1 |= ROW_MASK;
+    IODIR1 &= ~COL_MASK;
 
     /* Set rows HIGH */
-    IO1SET = ROW_MASK;
+    IOSET1 = ROW_MASK;
 
-    /*
-       Ensure the keypad column inputs have suitable pull-ups.
-       Check the LPC2129 board and external keypad wiring.
-    */
 }
 
 char Keypad_GetKey(void)
@@ -278,10 +271,10 @@ char Keypad_GetKey(void)
     for (row = 0; row < 4; row++)
     {
         /* Set all rows HIGH */
-        IO1SET = ROW_MASK;
+        IOSET1 = ROW_MASK;
 
         /* Pull the selected row LOW */
-        IO1CLR = (1 << (16 + row));
+        IOCLR1 = (1 << (16 + row));
 
         DelayMs(1);
 
@@ -294,24 +287,24 @@ char Keypad_GetKey(void)
             {
                 DelayMs(20); /* Debounce */
 
-                columnValue = IO1PIN & COL_MASK;
+                columnValue = IOPIN1 & COL_MASK;
 
                 if (!(columnValue & (1 << (20 + col))))
                 {
                     /* Wait for key release */
-                    while ((IO1PIN & (1 << (20 + col))) == 0)
+                    while ((IOPIN1 & (1 << (20 + col))) == 0)
                     {
                         DelayMs(1);
                     }
 
-                    IO1SET = ROW_MASK;
+                    IOSET1 = ROW_MASK;
                     return keypad[row][col];
                 }
             }
         }
     }
 
-    IO1SET = ROW_MASK;
+    IOSET1 = ROW_MASK;
     return 0;
 }
 
@@ -322,22 +315,22 @@ void LED_Init(void)
     /* Configure P0.20 as GPIO */
     PINSEL1 &= ~(3U << 8);
 
-    IO0DIR |= LED;
-    IO0CLR = LED;
+    IODIR0 |= LED;
+    IOCLR0 = LED;
 }
 
 void LED_On(void)
 {
-   IO0CLR = LED; 
+   IOCLR0 = LED; 
 }
 
 void LED_Off(void)
 {
-IO0SET = LED;
+IOSET0 = LED;
     
 }
 
-/* ---------------- FOOD FUNCTIONS ---------------- */
+/*FOOD FUNCTIONS */
 
 const char *FoodName(char key)
 {
@@ -442,7 +435,7 @@ int main(void)
 
     DelayMs(2000);
 
-    /* Notify mobile terminal that system has started */
+
     UART0_SendString("SYSTEM READY");
     SendNewLine();
 
@@ -451,7 +444,7 @@ int main(void)
 
     while (1)
     {
-        /* ---------------- STATE 0: SELECT TABLE ---------------- */
+        /* STATE 0: SELECT TABLE */
 
         if (state == 0)
         {
@@ -476,7 +469,7 @@ int main(void)
             }
         }
 
-        /* ---------------- STATE 1: SELECT FOOD ---------------- */
+        /* STATE 1: SELECT FOOD  */
 
         else if (state == 1)
         {
@@ -499,7 +492,7 @@ int main(void)
             }
         }
 
-        /* ---------------- STATE 2: CONFIRM ORDER ---------------- */
+        /* STATE 2: CONFIRM ORDER  */
 
         else if (state == 2)
         {
@@ -530,7 +523,7 @@ int main(void)
             }
         }
 
-        /* ---------------- STATE 3: WAIT FOR BLUETOOTH STATUS ---------------- */
+        /* STATE 3: WAIT FOR BLUETOOTH STATUS  */
 
         else if (state == 3)
         {
